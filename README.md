@@ -1,2 +1,6 @@
-Reciprocal Velocity Obstacle for Swarm Robotics
+# Swarm Robotics Simulator
+
+## Todo:
+    1. RVO
+    2. MARL Base Framework
 

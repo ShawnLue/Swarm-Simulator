@@ -1,3 +1,6 @@
+# -*- coding:utf-8 -*-
+# __author__ = 'shawnlue'
+
 from RVO import compute_V_des, RVO_update
 from vis import visualize_traj_dynamic
 import numpy as np

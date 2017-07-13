@@ -1,24 +1,27 @@
 import pygame as pg
-import PyParticles
+from simulator import Environment
 import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from settings import *
+from Experiment import Experiment
+from simulator.settings import *
 
-# os.environ["SDL_VIDEO_CENTERED"] = "True"
-# os.environ["SDL_VIDEODRIVER"] = "dummy"
-pg.init()
-pg.display.set_caption('Swarm RVO')
-(width, height) = (WIDTH, HEIGHT)
-screen = pg.display.set_mode((width, height), 0, 8)
-env = PyParticles.Environment((width, height))
+exp = Experiment(WIDTH, HEIGHT, centered=True, gui=True)
 
+# -------Env settings-------
+
+# add specified entities to env
 # env.addParticles(x=200, y=250, size=10, speed=0, angle=0)
 
+# add random entities to env
 env.add_Random_Obstacles(8)
 env.add_Random_Robots(20)
+
+# default map
 # env.get_map_1()
+
+# --------------------------
 
 selected_particle = None
 

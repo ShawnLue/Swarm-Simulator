@@ -1,3 +1,6 @@
+# -*- coding:utf-8 -*-
+# __author__ = 'shawnlue'
+
 import math
 import random
 from settings import *
@@ -32,8 +35,7 @@ class Entity(object):
 
 class Obstacle(Entity):
     """ A square object with only size and mass """
-    def __init__(self, (x, y), size=OB_DEFAULT_SIZE, **kargs):
-        elasticity = 0.9
+    def __init__(self, (x, y), size=OB_DEFAULT_SIZE, elasticity=0.9, **kargs):
         super(Obstacle, self).__init__((x, y), size,
                                        colour=OBSTACLE_COLOUR, elasticity=elasticity, **kargs)
 
@@ -71,7 +73,7 @@ class Environment:
         self.width = width
         self.height = height
         self.colour = ENV_COLOUR
-        self.mass_of_air = 0.02  # 0.05
+        self.mass_of_air = 0.05  # 0.05, bigger value, more resistance
         self.elasticity = 0.75   # 0.75
         self.vel_bound = 1
         self.entities = {'swarm': [], 'obstacles': []}
@@ -79,7 +81,7 @@ class Environment:
     def reset(self):
         pass
 
-    def get_map_1(self):
+    def get_map_1(self):    # mainly used for simulate RVO
         info = {'swarm': 14, 'swarm_size': ROBOT_DEFAULT_SIZE, 'obstacle': 4, 'obstacle_size': OB_DEFAULT_SIZE}
         for i in range(info['swarm']):
             if i % 2 == 0:

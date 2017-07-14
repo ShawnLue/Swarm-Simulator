@@ -3,7 +3,7 @@
 
 import math
 import random
-from settings import *
+from default_settings import *
 from utils import addVectors, collide
 import copy
 

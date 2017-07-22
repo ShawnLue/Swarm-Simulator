@@ -30,7 +30,7 @@ def RVO_update(X, V_des, V_current, ws_model, VO_method='VO'):
     """compute best velocity given the desired velocity, current velocity and workspace model"""
     ROB_RAD = ws_model['robot_radius'] + 0.1
     V_opt = list(V_current) # deep copy
-    for i in range(len(X)):
+    for i in range(len(X)): # Distributed
         vA = [V_current[i][0], V_current[i][1]]
         pA = [X[i][0], X[i][1]]
         RVO_BA_all = []

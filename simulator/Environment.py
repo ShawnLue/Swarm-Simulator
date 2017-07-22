@@ -11,9 +11,10 @@ import copy
 class Entity(object):
 
     """Base"""
-    def __init__(self, (x, y), size, **kargs):
+    def __init__(self, (x, y), index, size, **kargs):
         self.x = x
         self.y = y
+        self.id = index
         self.size = size
 
         self.colour = kargs.get('colour')
@@ -35,8 +36,8 @@ class Entity(object):
 
 class Obstacle(Entity):
     """ A square object with only size and mass """
-    def __init__(self, (x, y), size=OB_DEFAULT_SIZE, elasticity=0.9, **kargs):
-        super(Obstacle, self).__init__((x, y), size,
+    def __init__(self, (x, y), index, size=OB_DEFAULT_SIZE, elasticity=0.9, **kargs):
+        super(Obstacle, self).__init__((x, y), index, size,
                                        colour=OBSTACLE_COLOUR, elasticity=elasticity, **kargs)
 
     def move(self):
@@ -48,9 +49,17 @@ class Obstacle(Entity):
 class Robot(Entity):
 
     """ A circular object with a velocity, size and mass """
-    def __init__(self, (x, y), size=ROBOT_DEFAULT_SIZE, elasticity=0.9, **kargs):
-        super(Robot, self).__init__((x, y), size,
+    def __init__(self, (x, y), index, size=ROBOT_DEFAULT_SIZE, elasticity=0.9, **kargs):
+        super(Robot, self).__init__((x, y), index, size,
                                     colour=ROBOT_COLOUR, elasticity=elasticity, **kargs)
+        self._info_flow = {'pos': (self.x, self.y), 'size': self.size, 'angle': self.angle, 'speed': self.speed}
+
+    def update_info_flow(self):
+        self._info_flow.update({'pos': (self.x, self.y), 'size': self.size, 'angle': self.angle, 'speed': self.speed})
+
+    @property
+    def info_flow(self):
+        return self._info_flow
 
     def move(self, **kargs):
         """
@@ -63,6 +72,7 @@ class Robot(Entity):
         self.x += math.sin(self.angle) * self.speed
         self.y -= math.cos(self.angle) * self.speed
         self.speed *= self.drag
+        self.update_info_flow()
 
 
 class Environment:
@@ -77,30 +87,38 @@ class Environment:
         self.elasticity = 0.75   # 0.75
         self.vel_bound = 1
         self.entities = {'swarm': [], 'obstacles': []}
+        self._initialized = False   # if this env has been initialized
+        self._count = 0
 
     def reset(self):
         pass
 
+    @property
+    def count(self):
+        return self._count
+
     def get_map_1(self):    # mainly used for simulate RVO
         info = {'swarm': 14, 'swarm_size': ROBOT_DEFAULT_SIZE, 'obstacle': 4, 'obstacle_size': OB_DEFAULT_SIZE}
         for i in range(info['swarm']):
+            x = 60 * (i / 2 + 1)
             if i % 2 == 0:
-                x = 60 * (i / 2 + 1)
                 y = self.height - info['swarm_size'] - 100
             else:
-                x = 60 * (i / 2 + 1)
                 y = 100
             angle = 20
             speed = 1
-            robot = Robot((x, y), angle=angle, speed=speed)
+            robot = Robot((x, y), index=self._count, angle=angle, speed=speed)
+            self._count += 1
             robot.drag = (robot.mass / (robot.mass + self.mass_of_air)) ** robot.size
             self.entities['swarm'].append(robot)
 
         for j in range(info['obstacle']):
             x = (j + 1) * self.width / (info['obstacle'] + 1) - info['obstacle_size'] / 2
             y = self.height / 2 - info['obstacle_size'] / 2
-            obstacle = Obstacle((x, y), info['obstacle_size'])
+            obstacle = Obstacle((x, y), self._count, info['obstacle_size'])
+            self._count += 1
             self.entities['obstacles'].append(obstacle)
+        self._initialized = True
 
     def add_Random_Obstacles(self, n=1, **kargs):
         for i in range(n):
@@ -109,7 +127,8 @@ class Environment:
             while True:
                 x = kargs.get('x', random.uniform(size + 5, self.width - size - 5))
                 y = kargs.get('y', random.uniform(size + 5, self.height - size - 5))
-                ob = Obstacle((x, y), size)
+                ob = Obstacle((x, y), self._count, size)
+                self._count += 1
                 ob.drag = (ob.mass/(ob.mass + self.mass_of_air)) ** ob.size
                 has_collision = False
                 entities_list = reduce(lambda p, q: p+q, [j for j in self.entities.itervalues()])
@@ -129,7 +148,8 @@ class Environment:
             while True:
                 x = kargs.get('x', random.uniform(size + 5, self.width - size - 5))
                 y = kargs.get('y', random.uniform(size + 5, self.height - size - 5))
-                robot = Robot((x, y), size)
+                robot = Robot((x, y), self._count, size)
+                self._count += 1
                 robot.speed = kargs.get('speed', 10)
                 robot.angle = kargs.get('angle', random.uniform(0, math.pi*2))
                 robot.drag = (robot.mass/(robot.mass + self.mass_of_air)) ** robot.size
@@ -142,6 +162,7 @@ class Environment:
                 if not has_collision:
                     break
             self.entities['swarm'].append(robot)
+        self._initialized = True
 
     def update(self):
         """  Moves particles and tests for collisions with the walls and each other """
@@ -167,22 +188,22 @@ class Environment:
         """ Tests whether a particle has hit the boundary of the environment """
 
         if particle.x > self.width - particle.size:
-            particle.x = 2*(self.width - particle.size) - particle.x
+            particle.x = 2 * (self.width - particle.size) - particle.x
             particle.angle = - particle.angle
             particle.speed *= self.elasticity
 
         elif particle.x < particle.size:
-            particle.x = 2*particle.size - particle.x
+            particle.x = 2 * particle.size - particle.x
             particle.angle = - particle.angle
             particle.speed *= self.elasticity
 
         if particle.y > self.height - particle.size:
-            particle.y = 2*(self.height - particle.size) - particle.y
+            particle.y = 2 * (self.height - particle.size) - particle.y
             particle.angle = math.pi - particle.angle
             particle.speed *= self.elasticity
 
         elif particle.y < particle.size:
-            particle.y = 2*particle.size - particle.y
+            particle.y = 2 * particle.size - particle.y
             particle.angle = math.pi - particle.angle
             particle.speed *= self.elasticity
 

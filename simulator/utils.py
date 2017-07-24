@@ -4,6 +4,11 @@
 import math
 
 
+def distance(pos1, pos2):
+    """Compute E-distance for 2D"""
+    return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2) + 0.001
+
+
 def addVectors((angle1, length1), (angle2, length2)):
     """ Returns the sum of two vectors """
     x = math.sin(angle1) * length1 + math.sin(angle2) * length2

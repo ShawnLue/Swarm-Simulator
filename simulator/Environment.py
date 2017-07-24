@@ -4,7 +4,7 @@
 import math
 import random
 from default_settings import *
-from utils import addVectors, collide
+from utils import addVectors, collide, distance
 import copy
 
 
@@ -49,13 +49,19 @@ class Obstacle(Entity):
 class Robot(Entity):
 
     """ A circular object with a velocity, size and mass """
-    def __init__(self, (x, y), index, size=ROBOT_DEFAULT_SIZE, elasticity=0.9, **kargs):
+    def __init__(self, (x, y), index, sensing_range=LOCAL_SENSING_RANGE,
+                 size=ROBOT_DEFAULT_SIZE, elasticity=0.9, **kargs):
         super(Robot, self).__init__((x, y), index, size,
                                     colour=ROBOT_COLOUR, elasticity=elasticity, **kargs)
+        self._sensing_range = sensing_range
         self._info_flow = {'pos': (self.x, self.y), 'size': self.size, 'angle': self.angle, 'speed': self.speed}
 
     def update_info_flow(self):
         self._info_flow.update({'pos': (self.x, self.y), 'size': self.size, 'angle': self.angle, 'speed': self.speed})
+
+    @property
+    def sensing_range(self):
+        return self._sensing_range
 
     @property
     def info_flow(self):
@@ -88,14 +94,43 @@ class Environment:
         self.vel_bound = 1
         self.entities = {'swarm': [], 'obstacles': []}
         self._initialized = False   # if this env has been initialized
-        self._count = 0
+        self._robot_count, self._ob_count = 0, 0
+        self._neighborhood_set = {}
 
     def reset(self):
         pass
 
     @property
-    def count(self):
-        return self._count
+    def robot_count(self):
+        return self._robot_count
+
+    @property
+    def ob_count(self):
+        return self._ob_count
+
+    # TODO: Test!
+    @property
+    def neighborhood_set(self):
+        return self._neighborhood_set
+
+    def update_neighborhood_set(self):
+        for i in range(len(self.entities['swarm'])):
+            self._neighborhood_set[str(i)] = {'swarm': [], 'obstacles': []}
+
+        assert len(self.entities['swarm']) == self.robot_count
+        assert len(self.entities['obstacles']) == self.ob_count
+
+        for i in range(self.robot_count):
+            robot_i = self.entities['swarm'][i]
+            for j in range(i + 1, self.robot_count):
+                robot_j = self.entities['swarm'][j]
+                if distance((robot_i.x, robot_i.y), (robot_j.x, robot_j.y)) < robot_i.sensing_range:
+                    self._neighborhood_set[str(i)]['swarm'].append(j)
+                    self._neighborhood_set[str(j)]['swarm'].append(i)
+            for k in range(self.ob_count):
+                ob_k = self.entities['obstacles'][k]
+                if distance((robot_i.x, robot_i.y), (ob_k.x, ob_k.y)) < robot_i.sensing_range:
+                    self._neighborhood_set[str(i)]['obstacles'].append(k)
 
     def get_map_1(self):    # mainly used for simulate RVO
         info = {'swarm': 14, 'swarm_size': ROBOT_DEFAULT_SIZE, 'obstacle': 4, 'obstacle_size': OB_DEFAULT_SIZE}
@@ -107,16 +142,16 @@ class Environment:
                 y = 100
             angle = 20
             speed = 1
-            robot = Robot((x, y), index=self._count, angle=angle, speed=speed)
-            self._count += 1
+            robot = Robot((x, y), index=self._robot_count, angle=angle, speed=speed)
+            self._robot_count += 1
             robot.drag = (robot.mass / (robot.mass + self.mass_of_air)) ** robot.size
             self.entities['swarm'].append(robot)
 
         for j in range(info['obstacle']):
             x = (j + 1) * self.width / (info['obstacle'] + 1) - info['obstacle_size'] / 2
             y = self.height / 2 - info['obstacle_size'] / 2
-            obstacle = Obstacle((x, y), self._count, info['obstacle_size'])
-            self._count += 1
+            obstacle = Obstacle((x, y), self._ob_count, info['obstacle_size'])
+            self._ob_count += 1
             self.entities['obstacles'].append(obstacle)
         self._initialized = True
 
@@ -127,8 +162,8 @@ class Environment:
             while True:
                 x = kargs.get('x', random.uniform(size + 5, self.width - size - 5))
                 y = kargs.get('y', random.uniform(size + 5, self.height - size - 5))
-                ob = Obstacle((x, y), self._count, size)
-                self._count += 1
+                ob = Obstacle((x, y), self.ob_count, size)
+                self._ob_count += 1
                 ob.drag = (ob.mass/(ob.mass + self.mass_of_air)) ** ob.size
                 has_collision = False
                 entities_list = reduce(lambda p, q: p+q, [j for j in self.entities.itervalues()])
@@ -148,8 +183,8 @@ class Environment:
             while True:
                 x = kargs.get('x', random.uniform(size + 5, self.width - size - 5))
                 y = kargs.get('y', random.uniform(size + 5, self.height - size - 5))
-                robot = Robot((x, y), self._count, size)
-                self._count += 1
+                robot = Robot((x, y), self._robot_count, size)
+                self._robot_count += 1
                 robot.speed = kargs.get('speed', 10)
                 robot.angle = kargs.get('angle', random.uniform(0, math.pi*2))
                 robot.drag = (robot.mass/(robot.mass + self.mass_of_air)) ** robot.size
@@ -162,7 +197,7 @@ class Environment:
                 if not has_collision:
                     break
             self.entities['swarm'].append(robot)
-        self._initialized = True
+        self._initialized = True    # only at least one robot has been initialized, the game is initialized
 
     def update(self):
         """  Moves particles and tests for collisions with the walls and each other """
@@ -174,7 +209,7 @@ class Environment:
         #     self.bounce(entity)
         #     for entity2 in self.entities['swarm'][i+1:]:
         #         collide(entity, entity2)
-
+        self.update_neighborhood_set()
         entities_list = reduce(lambda x, y: x+y, [i for i in self.entities.itervalues()])
         for i, entity in enumerate(entities_list):
             if entity.speed > self.vel_bound:

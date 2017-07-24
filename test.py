@@ -1,11 +1,11 @@
 from Experiment import Experiment
-from simulator.settings import *
+from simulator.default_settings import *
 
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 500
+HEIGHT = 500
 
 # Initialize experiment
-exp = Experiment(WIDTH, HEIGHT, centered=True, gui=True)
+exp = Experiment(WIDTH, HEIGHT, centered=True, gui=True, use_mouse=USE_MOUSE)
 # Environment settings
 exp.env_settings()
 # Loop

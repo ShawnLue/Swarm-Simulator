@@ -48,3 +48,26 @@ def collide(p1, p2, only_return_if_collision=False):
         p2.x -= math.sin(angle) * overlap
         p2.y += math.cos(angle) * overlap
     return False
+
+
+def bounce(particle, width, height, elasticity):
+    """ Tests whether a particle has hit the boundary of the environment """
+    if particle.x > width - particle.size:
+        particle.x = 2 * (width - particle.size) - particle.x
+        particle.angle = - particle.angle
+        particle.speed *= elasticity
+
+    elif particle.x < particle.size:
+        particle.x = 2 * particle.size - particle.x
+        particle.angle = - particle.angle
+        particle.speed *= elasticity
+
+    if particle.y > height - particle.size:
+        particle.y = 2 * (height - particle.size) - particle.y
+        particle.angle = math.pi - particle.angle
+        particle.speed *= elasticity
+
+    elif particle.y < particle.size:
+        particle.y = 2 * particle.size - particle.y
+        particle.angle = math.pi - particle.angle
+        particle.speed *= elasticity
